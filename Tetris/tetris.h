@@ -18,22 +18,22 @@ class Tetris : public QWidget
     Q_OBJECT
 
 public:
-    void Initgame();
-    void Startgame();
-    void Gameover();
-    int board[main_bd_h][main_bd_w];
-    Block next;
-    Block cur;
-    void Generate();//新建一个block
-    void Generatenext();
+    void Initgame(); //初始化
+    void Startgame(); //开始游戏
+    void Gameover(); //结束游戏
+    int board[main_bd_h][main_bd_w]; //主界面
+    Block next; //提示方格
+    Block cur; //当前下落方格
+    void Generate();//next -> cur
+    void Generatenext(); // 创建 next
     bool Canmove(int x0, int y0); //坐标点是否能变换(up down left right)
-    void killLines();
-    int Linenum();
-    bool game_over();
-    void rotate();
-    bool if_rotate();
-    void move(int,int);
-    void ResetBlock();//
+    void killLines(); //消除满行
+    int Linenum(); //返回从上到下数的第一个满行
+    bool game_over(); //判断是否结束游戏
+    void rotate(); //旋转
+    bool if_rotate(); //判断能否旋转
+    void move(int,int); // 移动
+    void ResetBlock();// block迭代
     void move_block(Direction dir);//block ->move
 public:
     explicit Tetris(QWidget *parent = 0);

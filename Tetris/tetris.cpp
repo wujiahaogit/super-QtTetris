@@ -1,5 +1,7 @@
 #include <time.h>
 #include <QMessageBox>
+#include <QTime>
+#include <QTimerEvent>
 #include <QDebug>
 #include <QPainter>
 #include <QKeyEvent>
@@ -8,6 +10,7 @@
 #include "ui_tetris.h"
 
 int types[8]{1,2,4,4,1,2,4,2};
+// 记录各种block 的4×4方格安置数
 //'0' I、J、L、O、S、T、Z
 // 0 1 2 3 4 5 6 7
 
@@ -149,36 +152,39 @@ Tetris::Tetris(QWidget *parent) :
     ui(new Ui::Tetris)
 {
     ui->setupUi(this);
-    resize(main_bd_w*block_r+BIANK*4+4*block_r,main_bd_h*block_r+BIANK*2);
-    Initgame();
+    resize(main_bd_w*block_r+BIANK*4+4*block_r,main_bd_h*block_r+BIANK*2); //resize
+    Initgame(); //初始化
 }
-void Tetris::paintEvent(QPaintEvent * event)
+void Tetris::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
     painter.setBrush(QBrush(Qt::white,Qt::SolidPattern));
     painter.drawRect(BIANK,BIANK,main_bd_w*block_r,main_bd_h*block_r);
+    // paint next
     for(int i=0;i<4;i++)
         for(int j=0;j<4;j++)
             if(next.bb[i][j]){
                 if(next.bb[i][j]==1)
-                   painter.setBrush(QBrush(Qt::cyan,Qt::SolidPattern));
+                   painter.setBrush(QBrush(Qt::cyan,Qt::SolidPattern)); // I
                 else if(next.bb[i][j]==2)
-                    painter.setBrush(QBrush(Qt::blue,Qt::SolidPattern));
+                    painter.setBrush(QBrush(Qt::blue,Qt::SolidPattern)); // J
                 else if(next.bb[i][j]==3)
-                    painter.setBrush(QBrush(Qt::darkYellow,Qt::SolidPattern));
+                    painter.setBrush(QBrush(Qt::darkYellow,Qt::SolidPattern)); // L
                 else if(next.bb[i][j]==4)
-                    painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern));
+                    painter.setBrush(QBrush(Qt::yellow,Qt::SolidPattern)); // O
                 else if(next.bb[i][j]==5)
-                    painter.setBrush(QBrush(Qt::green,Qt::SolidPattern));
+                    painter.setBrush(QBrush(Qt::green,Qt::SolidPattern)); // S
                 else if(next.bb[i][j]==6)
-                    painter.setBrush(QBrush(Qt::magenta,Qt::SolidPattern));
+                    painter.setBrush(QBrush(Qt::magenta,Qt::SolidPattern)); //T
                 else if(next.bb[i][j]==7)
-                    painter.setBrush(QBrush(Qt::red,Qt::SolidPattern));
+                    painter.setBrush(QBrush(Qt::red,Qt::SolidPattern));  // Z
                 painter.drawRect(BIANK*3+main_bd_w*block_r+j*block_r,BIANK+i*block_r,block_r,block_r);
             }
+    //paint score
     painter.setPen(Qt::black);
     painter.setFont(QFont("Arial",14));
     painter.drawText(QRect(BIANK*3+main_bd_w*block_r,BIANK*2+4*block_r,block_r*4,block_r*4),Qt::AlignCenter,"score: "+QString::number(score));
+    //paint board
     for(int i=0;i<main_bd_h;i++)
         for(int j=0;j<main_bd_w;j++)
         {
@@ -237,23 +243,26 @@ void Tetris::Generate()
     cur.shape=next.shape;
     for(int i=0;i<4;++i){
         for(int j=0;j<4;++j){
-            cur.bb[i][j]=next.bb[i][j];
+            cur.bb[i][j]=next.bb[i][j]; //next -> cur
         }
     }
-    cur.bp={3,0};
+    cur.bp={0,3}; //初始位置为正中上方
 }
 void Tetris::Initgame()
 {
     for(int i=0;i<main_bd_h;i++)
         for(int j=0;j<main_bd_w;j++)
             board[i][j]=0;
-
+    // time event 相关
     speed_ms=800;
     refresh_ms=30;
     srand(time(0));
+
+    // score置零
     score=0;
     Startgame();
 }
+// produce next
 void Tetris::Generatenext(){
     switch (next.shape){
     case 1: // I
@@ -323,14 +332,17 @@ void Tetris ::ResetBlock()
 {
     Generate();
     int ID=rand()%7;
-    next.shape=ID+1;
+    next.shape=ID+1;// produce next之前 确定next.shape
     Generatenext();
-    cur.bp={main_bd_w/2-2,0};
+    cur.bp={0,3};
 }
 void Tetris::Startgame()
 {
+    // time prepare
     game_timer=startTimer(speed_ms);
     paint_timer=startTimer(refresh_ms);
+
+    // 为方格迭代做准备
     int ID=rand()%7;
     next.shape=ID+1;
     Generatenext();
@@ -352,50 +364,76 @@ void Tetris::rotate()
         for(int j=0;j<4;++j){
             temp[3-j][i]=cur.bb[i][j];
             if(cur.bb[i][j])
-                board[i+cur.bp.pos_x][j+cur.bp.pos_y]=0;
+                board[i+cur.bp.pos_x][j+cur.bp.pos_y]=0; //先置零
         }
     }
     for(int i=0;i<4;i++){
         for(int j=0;j<4;j++){
             cur.bb[i][j]=temp[i][j];
             if(cur.bb[i][j])
-                board[i+cur.bp.pos_x][j+cur.bp.pos_y]=cur.bb[i][j];
+                board[i+cur.bp.pos_x][j+cur.bp.pos_y]=cur.bb[i][j]; //再赋值
         }
     }
 }
 bool Tetris::if_rotate()
 {
+    bool flag=true;
     int temp[4][4];
     for(int i=0;i<4;++i){
         for(int j=0;j<4;++j){
             temp[3-j][i]=cur.bb[i][j];
+            if(cur.bb[i][j])
+                board[cur.bp.pos_x+i][cur.bp.pos_y+j]=0;
         }
     }
     for(int i=0;i<4;++i){
         for(int j=0;j<4;++j){
             int ti=cur.bp.pos_x+i,tj=cur.bp.pos_y+j;
             if((ti<0||ti>=20||tj<0||tj>=10)&&temp[i][j]>=1)
-                return false;
+                flag=false;
             if(temp[i][j]>=1&&board[ti][tj]>=1)
-                return false;
+                flag=false;
         }
     }
-    return true;
+    for(int i=0;i<4;++i){
+        for(int j=0;j<4;++j){
+            if(cur.bb[i][j])
+                board[cur.bp.pos_x+i][cur.bp.pos_y+j]=cur.bb[i][j];
+        }
+    }
+    return flag;
 }
-bool Tetris::Canmove(int x0, int y0){ //判断能不能动的依据：创建一个新数组，对可能变化后的目标进行判定 如果结果为true直接移动
+bool Tetris::Canmove(int x0, int y0){ //判断能不能动的依据：创建一个新数组，并清零原>=1的位置，对可能变化后的目标进行判定
+    bool flag=true;
     if(x0==-1&&y0==0){
         return if_rotate();
     }
     for(int i=0;i<4;++i){
         for(int j=0;j<4;++j){
-            int ti=cur.bp.pos_x+i+x0,tj=cur.bp.pos_y+j+y0;
-            if((ti<0||ti>=20||tj<0||tj>=10)&&cur.bb[i][j])
-                return false;
-            if(cur.bb[i][j]>=1&&board[ti][tj])
-                return false;
+            if(cur.bb[i][j])
+                board[cur.bp.pos_x+i][cur.bp.pos_y+j]=0;
         }
     }
-    return true;
+    cur.bp.pos_x+=x0;
+    cur.bp.pos_y+=y0;
+    for(int i=0;i<4;++i){
+        for(int j=0;j<4;++j){
+            int ti=cur.bp.pos_x+i,tj=cur.bp.pos_y+j;
+            if((ti<0||ti>=20||tj<0||tj>=10)&&cur.bb[i][j])
+                flag=false;
+            if(cur.bb[i][j]>=1&&board[ti][tj])
+                flag=false;
+        }
+    }
+    cur.bp.pos_x-=x0;
+    cur.bp.pos_y-=y0;
+    for(int i=0;i<4;++i){
+        for(int j=0;j<4;++j){
+            if(cur.bb[i][j])
+                board[cur.bp.pos_x+i][cur.bp.pos_y+j]=cur.bb[i][j];
+        }
+    }
+    return flag;
 }
 void Tetris::move(int x0,int y0)
 {
@@ -469,6 +507,9 @@ void Tetris::move_block(Direction dir)
     case DOWN:
         if(Canmove(1,0))
             move(1,0);
+        else{
+            ResetBlock();
+        }
         break;
     case LEFT:
         if(Canmove(0,-1))
